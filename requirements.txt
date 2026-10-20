@@ -1,0 +1,7 @@
+pennylane>=0.45
+pennylane-lightning
+pyscf
+rdkit
+scikit-learn
+numpy
+matplotlib
