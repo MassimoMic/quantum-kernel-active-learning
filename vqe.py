@@ -7,6 +7,12 @@ space (4 electrons, 4 orbitals, STO-3G -> 8 qubits), then compute
     E_exact   : exact diagonalisation of the 8-qubit Hamiltonian (CASCI)
     E_VQE     : UCCSD VQE energy
     psi       : final VQE statevector (2**8 complex amplitudes)
+    psi_cheap : statevector after CHEAP_STEPS optimisation steps
+
+psi_cheap is what a surrogate is allowed to see for *unlabelled*
+molecules: it costs a small, fixed fraction of the full VQE. psi (the
+converged state) is only available once the label has been paid for, so
+a kernel built on it is an oracle, not a usable surrogate.
 
 The learning target is the active-space correlation energy
     y = E_VQE - E_HF
@@ -26,6 +32,7 @@ from .pool import Molecule
 ACTIVE_ELECTRONS = 4
 ACTIVE_ORBITALS = 4
 N_QUBITS = 2 * ACTIVE_ORBITALS
+CHEAP_STEPS = 5  # optimisation steps allowed for the "cheap" state
 
 
 @dataclass
@@ -34,6 +41,7 @@ class Label:
     e_hf: float
     e_exact: float
     e_vqe: float
+    e_cheap: float
     n_params: int
     n_steps: int
     seconds: float
@@ -45,7 +53,7 @@ def hamiltonian(mol: Molecule):
         charge=mol.charge, basis_name="sto-3g", unit="angstrom",
     )
     H, n_qubits = qml.qchem.molecular_hamiltonian(
-        m, method="pyscf",
+        m, method="dhf",
         active_electrons=ACTIVE_ELECTRONS, active_orbitals=ACTIVE_ORBITALS,
     )
     assert n_qubits == N_QUBITS
@@ -92,27 +100,34 @@ def run_vqe(mol: Molecule, max_steps: int = 200, lr: float = 0.3, tol: float = 1
     opt = qml.AdamOptimizer(stepsize=lr)
     prev = e_hf
     steps = 0
+    psi_cheap, e_cheap = None, None
     for steps in range(1, max_steps + 1):
         theta, e = opt.step_and_cost(energy, theta)
+        if steps == CHEAP_STEPS:
+            psi_cheap = np.asarray(state(theta))
+            e_cheap = float(energy(theta))
         if abs(prev - e) < tol:
             break
         prev = e
     e_vqe = float(energy(theta))
     psi = np.asarray(state(theta))
+    if psi_cheap is None:  # converged before CHEAP_STEPS
+        psi_cheap, e_cheap = psi, e_vqe
     e_exact = exact_energy(H)
 
-    label = Label(mol.name, e_hf, e_exact, e_vqe, n_params, steps, time.time() - t0)
-    return label, psi
+    label = Label(mol.name, e_hf, e_exact, e_vqe, e_cheap, n_params, steps, time.time() - t0)
+    return label, psi, psi_cheap
 
 
-def save_labels(labels: list[Label], states: np.ndarray, path_json: str, path_npz: str):
+def save_labels(labels: list[Label], states, states_cheap, path_json: str, path_npz: str):
     with open(path_json, "w") as f:
         json.dump([asdict(l) for l in labels], f, indent=2)
-    np.savez_compressed(path_npz, states=states, names=np.array([l.name for l in labels]))
+    np.savez_compressed(path_npz, states=np.array(states), states_cheap=np.array(states_cheap),
+                        names=np.array([l.name for l in labels]))
 
 
 def load_labels(path_json: str, path_npz: str):
     with open(path_json) as f:
         labels = [Label(**d) for d in json.load(f)]
     z = np.load(path_npz)
-    return labels, z["states"]
+    return labels, z["states"], z["states_cheap"]

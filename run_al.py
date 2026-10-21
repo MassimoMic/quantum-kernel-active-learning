@@ -14,25 +14,31 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from qkal.pool import build_pool
-from qkal.vqe import load_labels
-from qkal.features import (morgan_counts, descriptors, tanimoto_kernel, rbf_kernel,
+from pool import build_pool
+from vqe import load_labels
+from features import (morgan_counts, descriptors, tanimoto_kernel, rbf_kernel,
                            fidelity_kernel, kernel_diagnostics)
-from qkal.active_learning import active_learning_curve
+from active_learning import active_learning_curve
 
-N_INIT, N_FINAL, SEEDS = 3, 9, 10  # prototype values; use 5, 25 on the full pool
+N_INIT, N_FINAL, SEEDS = 5, 25, 10
 
-labels, states = load_labels("data/labels.json", "data/states.npz")
+labels, states, states_cheap = load_labels("data/labels.json", "data/states.npz")
 mols = build_pool([l.name for l in labels])
 y = np.array([l.e_vqe - l.e_hf for l in labels])  # active-space correlation energy
+N_FINAL = min(N_FINAL, len(y) - 3)  # keep at least 3 unlabelled molecules to score on
+N_INIT = min(N_INIT, max(2, N_FINAL // 3))
 print(f"{len(y)} molecules, target = correlation energy, "
       f"mean {y.mean():+.4f} Ha, std {y.std():.4f} Ha")
 
 kernels = {
     "Tanimoto (Morgan FP)": tanimoto_kernel(morgan_counts(mols)),
     "RBF (RDKit descriptors)": rbf_kernel(descriptors(mols)),
-    "Fidelity (VQE states)": fidelity_kernel(states),
+    "Fidelity (cheap 5-step states)": fidelity_kernel(states_cheap),
+    "Fidelity (converged states, oracle)": fidelity_kernel(states),
 }
+# The last kernel sees the converged state of *unlabelled* molecules, i.e.
+# the expensive calculation itself: it is an upper bound, not a usable
+# surrogate. It is kept for comparison and drawn dashed.
 
 summary = {}
 fig, ax = plt.subplots(figsize=(6.5, 4.2))
@@ -42,7 +48,7 @@ for name, K in kernels.items():
                     for s in range(SEEDS)])
     x = np.arange(N_INIT, N_FINAL + 1)
     m, sd = curves.mean(0), curves.std(0) / np.sqrt(SEEDS)
-    ax.plot(x, m * 1e3, label=name)
+    ax.plot(x, m * 1e3, label=name, ls="--" if "oracle" in name else "-")
     ax.fill_between(x, (m - sd) * 1e3, (m + sd) * 1e3, alpha=0.2)
     summary[name] = {
         **kernel_diagnostics(K),
@@ -62,7 +68,7 @@ ax.legend()
 fig.tight_layout()
 fig.savefig("results/al_curves.png", dpi=150)
 
-fig, axes = plt.subplots(1, 3, figsize=(10, 3))
+fig, axes = plt.subplots(1, len(kernels), figsize=(3.3 * len(kernels), 3))
 for ax, (name, K) in zip(axes, kernels.items()):
     off = K[~np.eye(len(K), dtype=bool)]
     ax.hist(off, bins=30)
