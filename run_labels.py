@@ -13,8 +13,11 @@ import warnings
 
 import numpy as np
 
-from pool import build_pool, POOL_SMILES
-from vqe import run_vqe, save_labels, Label
+from qkal.pool import build_pool, POOL_SMILES
+from qkal.vqe import run_vqe, save_labels, Label
+
+os.makedirs("data", exist_ok=True)
+os.makedirs("results", exist_ok=True)
 
 warnings.filterwarnings("ignore")
 JSON, NPZ = "data/labels.json", "data/states.npz"

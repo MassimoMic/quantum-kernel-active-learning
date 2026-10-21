@@ -1,0 +1,38 @@
+{
+  "Tanimoto (Morgan FP)": {
+    "offdiag_mean": 0.04755206860470018,
+    "offdiag_std": 0.08136649204513718,
+    "offdiag_min": 0.0,
+    "effective_rank": 33.37702331514632,
+    "auc_uncertainty_mHa": 83428.82705451349,
+    "auc_random_mHa": 75415.93172322896,
+    "rmse_final_mHa": 4795.510777329428
+  },
+  "RBF (RDKit descriptors)": {
+    "offdiag_mean": 0.38216290456103785,
+    "offdiag_std": 0.22287038174699136,
+    "offdiag_min": 0.0031986404456205647,
+    "effective_rank": 8.892171358401706,
+    "auc_uncertainty_mHa": 85211.49494015143,
+    "auc_random_mHa": 96370.08419113424,
+    "rmse_final_mHa": 4356.3647402168235
+  },
+  "Fidelity (cheap 5-step states)": {
+    "offdiag_mean": 0.3147524928789253,
+    "offdiag_std": 0.38817549256578854,
+    "offdiag_min": 3.3589436186301216e-10,
+    "effective_rank": 8.810920894149833,
+    "auc_uncertainty_mHa": 21102.966751712283,
+    "auc_random_mHa": 51014.846795696714,
+    "rmse_final_mHa": 356.8371950391936
+  },
+  "Fidelity (converged states, oracle)": {
+    "offdiag_mean": 0.3563987888725637,
+    "offdiag_std": 0.4481435232056203,
+    "offdiag_min": 1.3730159974024717e-10,
+    "effective_rank": 5.889417460675862,
+    "auc_uncertainty_mHa": 20610.58947244906,
+    "auc_random_mHa": 33792.369553702054,
+    "rmse_final_mHa": 17.62498479041204
+  }
+}

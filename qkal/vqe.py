@@ -53,11 +53,38 @@ def hamiltonian(mol: Molecule):
         charge=mol.charge, basis_name="sto-3g", unit="angstrom",
     )
     H, n_qubits = qml.qchem.molecular_hamiltonian(
-        m, method="dhf",
+        m, method="pyscf",
         active_electrons=ACTIVE_ELECTRONS, active_orbitals=ACTIVE_ORBITALS,
     )
     assert n_qubits == N_QUBITS
     return H
+
+
+def scf_energy(mol: Molecule) -> tuple[float, bool]:
+    """Reference RHF energy straight from PySCF (None if PySCF is missing)."""
+    try:
+        from pyscf import gto, scf
+    except ImportError:
+        return None, True
+    m = gto.M(atom=[(s, tuple(c)) for s, c in zip(mol.symbols, mol.coords)],
+              basis="sto-3g", unit="angstrom", charge=mol.charge)
+    mf = scf.RHF(m).run(verbose=0)
+    return float(mf.e_tot), bool(mf.converged)
+
+
+def check_hf(mol: Molecule, e_hf_qubit: float, tol: float = 1e-5):
+    """The HF determinant of the qubit Hamiltonian must reproduce the SCF energy.
+
+    If it does not, the active space is not built on the HF orbitals
+    (SCF not converged, wrong orbital ordering, version mismatch) and every
+    label for this molecule would be garbage. Fail loudly instead.
+    """
+    e_scf, conv = scf_energy(mol)
+    if e_scf is None:
+        return
+    if not conv or abs(e_scf - e_hf_qubit) > tol:
+        raise ValueError(f"{mol.name}: E_HF(qubit)={e_hf_qubit:.6f} vs E_SCF(pyscf)={e_scf:.6f}, "
+                         f"converged={conv} -> active space inconsistent, label rejected")
 
 
 def exact_energy(H) -> float:
@@ -95,7 +122,17 @@ def run_vqe(mol: Molecule, max_steps: int = 200, lr: float = 0.3, tol: float = 1
 
     rng = np.random.default_rng(seed)
     theta = pnp.array(rng.normal(0, 0.01, n_params), requires_grad=True)
-    e_hf = float(energy(pnp.zeros(n_params, requires_grad=False)))
+    # HF energy straight from the determinant (independent of the ansatz/backend)
+    @qml.qnode(qml.device("default.qubit", wires=N_QUBITS))
+    def hf_energy():
+        qml.BasisState(hf_state, wires=range(N_QUBITS))
+        return qml.expval(H)
+    e_hf = float(hf_energy())
+    check_hf(mol, e_hf)                      # qubit HF == PySCF SCF
+    e_circuit0 = float(energy(pnp.zeros(n_params, requires_grad=False)))
+    if abs(e_circuit0 - e_hf) > 1e-6:        # ansatz at theta=0 must be the HF state
+        raise ValueError(f"{mol.name}: UCCSD(theta=0) gives {e_circuit0:.6f}, HF is {e_hf:.6f} "
+                         f"-> circuit/backend inconsistent, label rejected")
 
     opt = qml.AdamOptimizer(stepsize=lr)
     prev = e_hf

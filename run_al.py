@@ -13,12 +13,16 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
-from pool import build_pool
-from vqe import load_labels
-from features import (morgan_counts, descriptors, tanimoto_kernel, rbf_kernel,
+from qkal.pool import build_pool
+from qkal.vqe import load_labels
+from qkal.features import (morgan_counts, descriptors, tanimoto_kernel, rbf_kernel,
                            fidelity_kernel, kernel_diagnostics)
-from active_learning import active_learning_curve
+from qkal.active_learning import active_learning_curve
+
+os.makedirs("data", exist_ok=True)
+os.makedirs("results", exist_ok=True)
 
 N_INIT, N_FINAL, SEEDS = 5, 25, 10
 
