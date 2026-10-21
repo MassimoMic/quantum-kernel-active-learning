@@ -61,6 +61,7 @@ class Molecule:
     symbols: list
     coords: np.ndarray  # Angstrom, shape (n_atoms, 3)
     charge: int = 0
+    features: np.ndarray | None = None  # geometry features for pool B
 
 
 def embed(smiles: str, seed: int = 7) -> tuple[list, np.ndarray]:

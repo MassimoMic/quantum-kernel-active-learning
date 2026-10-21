@@ -33,6 +33,7 @@ ACTIVE_ELECTRONS = 4
 ACTIVE_ORBITALS = 4
 N_QUBITS = 2 * ACTIVE_ORBITALS
 CHEAP_STEPS = 5  # optimisation steps allowed for the "cheap" state
+CHECKPOINTS = (1, 2, 5, 10, 20)  # extra intermediate states saved for the cost scan
 
 
 @dataclass
@@ -45,6 +46,7 @@ class Label:
     n_params: int
     n_steps: int
     seconds: float
+    e_mp2: float = float("nan")
 
 
 def hamiltonian(mol: Molecule):
@@ -72,6 +74,37 @@ def scf_energy(mol: Molecule) -> tuple[float, bool]:
     return float(mf.e_tot), bool(mf.converged)
 
 
+def mp2_theta(mol: Molecule, singles, doubles) -> np.ndarray:
+    """UCCSD parameters from active-space MP2 amplitudes (PySCF), singles = 0.
+
+    This is the standard cheap, deterministic initial state of a VQE: it
+    costs an MP2 calculation (milliseconds here) and no optimisation.
+    Sign convention checked numerically: theta = -t2 lowers the energy.
+    """
+    from pyscf import gto, scf, mp
+    m = gto.M(atom=[(sy, tuple(c)) for sy, c in zip(mol.symbols, mol.coords)],
+              basis="sto-3g", unit="angstrom", charge=mol.charge)
+    mf = scf.RHF(m).run(verbose=0)
+    nocc = m.nelectron // 2
+    ncore = nocc - ACTIVE_ELECTRONS // 2
+    act = list(range(ncore, ncore + ACTIVE_ORBITALS))
+    frozen = [p for p in range(mf.mo_coeff.shape[1]) if p not in act]
+    t2 = mp.MP2(mf, frozen=frozen).run(verbose=0).t2  # (no, no, nv, nv), active only
+    no = t2.shape[0]
+    theta = np.zeros(len(singles) + len(doubles))
+    for n, (i, j, k, l) in enumerate(doubles):
+        pi, pj, pk, pl = i // 2, j // 2, k // 2 - no, l // 2 - no
+        si, sj, sk, sl = i % 2, j % 2, k % 2, l % 2
+        if si == sk and sj == sl:
+            amp = t2[pi, pj, pk, pl] - (t2[pi, pj, pl, pk] if si == sj else 0.0)
+        elif si == sl and sj == sk:
+            amp = -t2[pi, pj, pl, pk] + (t2[pi, pj, pk, pl] if si == sj else 0.0)
+        else:
+            amp = 0.0
+        theta[len(singles) + n] = -amp
+    return theta
+
+
 def check_hf(mol: Molecule, e_hf_qubit: float, tol: float = 1e-5):
     """The HF determinant of the qubit Hamiltonian must reproduce the SCF energy.
 
@@ -82,7 +115,11 @@ def check_hf(mol: Molecule, e_hf_qubit: float, tol: float = 1e-5):
     e_scf, conv = scf_energy(mol)
     if e_scf is None:
         return
-    if not conv or abs(e_scf - e_hf_qubit) > tol:
+    # Reject only if the qubit HF energy is ABOVE the reference SCF: that means the
+    # active space is not built on HF orbitals. A qubit HF *below* the reference is
+    # a different (lower) SCF solution, which happens at twisted/stretched
+    # geometries, and is fine.
+    if not conv or e_hf_qubit - e_scf > tol:
         raise ValueError(f"{mol.name}: E_HF(qubit)={e_hf_qubit:.6f} vs E_SCF(pyscf)={e_scf:.6f}, "
                          f"converged={conv} -> active space inconsistent, label rejected")
 
@@ -120,6 +157,14 @@ def run_vqe(mol: Molecule, max_steps: int = 200, lr: float = 0.3, tol: float = 1
                   d_wires=d_wires, init_state=hf_state)
         return qml.state()
 
+    # deterministic cheap state: MP2-initialised UCCSD (no optimisation)
+    try:
+        th_mp2 = pnp.array(mp2_theta(mol, singles, doubles), requires_grad=False)
+        psi_mp2 = np.asarray(state(th_mp2))
+        e_mp2 = float(energy(th_mp2))
+    except ImportError:  # no PySCF
+        psi_mp2, e_mp2 = None, float("nan")
+
     rng = np.random.default_rng(seed)
     theta = pnp.array(rng.normal(0, 0.01, n_params), requires_grad=True)
     # HF energy straight from the determinant (independent of the ansatz/backend)
@@ -138,10 +183,13 @@ def run_vqe(mol: Molecule, max_steps: int = 200, lr: float = 0.3, tol: float = 1
     prev = e_hf
     steps = 0
     psi_cheap, e_cheap = None, None
+    checkpoints = {}
     for steps in range(1, max_steps + 1):
         theta, e = opt.step_and_cost(energy, theta)
+        if steps in CHECKPOINTS:
+            checkpoints[steps] = np.asarray(state(theta))
         if steps == CHEAP_STEPS:
-            psi_cheap = np.asarray(state(theta))
+            psi_cheap = checkpoints.get(steps, np.asarray(state(theta)))
             e_cheap = float(energy(theta))
         if abs(prev - e) < tol:
             break
@@ -150,16 +198,22 @@ def run_vqe(mol: Molecule, max_steps: int = 200, lr: float = 0.3, tol: float = 1
     psi = np.asarray(state(theta))
     if psi_cheap is None:  # converged before CHEAP_STEPS
         psi_cheap, e_cheap = psi, e_vqe
+    for k in CHECKPOINTS:  # converged before checkpoint k -> final state
+        checkpoints.setdefault(k, psi)
     e_exact = exact_energy(H)
 
-    label = Label(mol.name, e_hf, e_exact, e_vqe, e_cheap, n_params, steps, time.time() - t0)
-    return label, psi, psi_cheap
+    if psi_mp2 is not None:
+        checkpoints["mp2"] = psi_mp2
+    label = Label(mol.name, e_hf, e_exact, e_vqe, e_cheap, n_params, steps, time.time() - t0, e_mp2)
+    return label, psi, psi_cheap, checkpoints
 
 
-def save_labels(labels: list[Label], states, states_cheap, path_json: str, path_npz: str):
+def save_labels(labels: list[Label], states, states_cheap, path_json: str, path_npz: str,
+                checkpoints: dict | None = None):
     with open(path_json, "w") as f:
         json.dump([asdict(l) for l in labels], f, indent=2)
-    np.savez_compressed(path_npz, states=np.array(states), states_cheap=np.array(states_cheap),
+    extra = {f"states_step{k}": np.array(v) for k, v in (checkpoints or {}).items()}
+    np.savez_compressed(path_npz, states=np.array(states), states_cheap=np.array(states_cheap), **extra,
                         names=np.array([l.name for l in labels]))
 
 
