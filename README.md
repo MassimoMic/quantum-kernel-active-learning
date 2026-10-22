@@ -79,12 +79,37 @@ Cost scan of the fidelity kernel (final RMSE, mHa): 1 step 22.2 · 2 steps 10.6 
 Concentration is not the bottleneck at 8 qubits and 38 molecules (the most
 concentrated kernels perform best); it will be at larger sizes.
 
-## Open question → pool B
+## Pool B: strong correlation (44 geometries, 25 labels, 10 seeds) — preliminary
 
-MP2 is a near-perfect proxy exactly where nobody needs a quantum computer. Pool B
-scans into strong correlation (stretched N₂, twisted ethylene) to test whether the
-MP2 scalar still suffices there, or whether a kernel on the state carries information
-the scalar does not. Results pending.
+MP2 is a near-perfect proxy exactly where nobody needs a quantum computer.
+Pool B scans into strong correlation (stretched N₂, C₂H₂, H₂O, HCN; twisted
+ethylene) to test whether the MP2 scalar still suffices, or whether a kernel on
+the state carries information the scalar does not.
+
+| Surrogate | final RMSE [mHa] | AUC uncertainty | AUC random | eff. rank |
+|---|---|---|---|---|
+| RBF (geometry features) | 43.2 | 1316 | 2664 | 6.2 |
+| Δ-learning on the MP2 energy (scalar) | 39.0 | 7551 | 14587 | 3.5 |
+| RBF (geometry + 5-step energy) | 29.8 | 900 | 1806 | 6.0 |
+| Fidelity, MP2-initialised states | 29.6 | 1348 | 6617 | 1.4 |
+| Fidelity, converged states (oracle) | 25.5 | 965 | 1602 | 4.7 |
+
+Target spread is 140 mHa (vs 40 mHa in pool A); the VQE sits 2 mHa above the exact
+energy on average (max 28 mHa at the most stretched geometries).
+
+- **The MP2 scalar collapses** (worst AUC of all): single-reference proxies stop being
+  informative in this regime, as expected.
+- **Converged states regain structure**: the oracle's effective rank rises from 1.3 to 4.7
+  and it is the best surrogate. The MP2 state does not inherit this (rank 1.4): a
+  single-reference state cannot see multi-determinant structure.
+- **Nothing is good yet** (best RMSE ≈ 18 % of the target spread). The geometry baseline is
+  weak (fixed RBF length scale, no per-family treatment) and 25 labels across five
+  one-parameter curves are few; the comparison is not fair until the classical
+  baseline is tuned.
+
+**Next:** GP hyperparameters by marginal likelihood for all kernels; a cheap
+*multi-reference* state (a few VQE steps from the MP2 point, or a 2-in-2 CASCI) as the
+candidate that could inherit the oracle's structure at low cost.
 
 ## Run
 
