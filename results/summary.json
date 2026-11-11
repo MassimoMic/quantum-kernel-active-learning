@@ -4,71 +4,71 @@
     "offdiag_std": 0.08136649204513718,
     "offdiag_min": 0.0,
     "effective_rank": 33.37702331514632,
-    "auc_uncertainty_mHa": 523.1999479243799,
-    "auc_random_mHa": 743.8579797600446,
-    "rmse_final_mHa": 12.548253177532157
+    "auc_uncertainty_mHa": 523.199947925138,
+    "auc_random_mHa": 743.8579797608877,
+    "rmse_final_mHa": 12.548253177606874
   },
   "RBF (RDKit descriptors)": {
     "offdiag_mean": 0.38216290456103785,
     "offdiag_std": 0.22287038174699136,
     "offdiag_min": 0.0031986404456205647,
     "effective_rank": 8.892171358401706,
-    "auc_uncertainty_mHa": 561.000287953162,
-    "auc_random_mHa": 650.712239713799,
-    "rmse_final_mHa": 13.912345608953666
+    "auc_uncertainty_mHa": 561.0002879542383,
+    "auc_random_mHa": 650.7122397151401,
+    "rmse_final_mHa": 13.912345608936217
   },
   "Delta-learning (cheap energy only)": {
-    "offdiag_mean": 0.41881481504503754,
-    "offdiag_std": 0.3707391510119378,
-    "offdiag_min": 2.0924487290143064e-17,
-    "effective_rank": 3.883172496933759,
-    "auc_uncertainty_mHa": 1274.2244196608885,
-    "auc_random_mHa": 3948.71470096003,
-    "rmse_final_mHa": 9.9992829066999
+    "offdiag_mean": 0.4272442737252577,
+    "offdiag_std": 0.36952568962176546,
+    "offdiag_min": 4.878737911285383e-12,
+    "effective_rank": 3.7933582978047,
+    "auc_uncertainty_mHa": 1191.2252629340892,
+    "auc_random_mHa": 4225.984420404858,
+    "rmse_final_mHa": 11.793332759389433
   },
   "RBF (descriptors + cheap energy)": {
-    "offdiag_mean": 0.3924139102463998,
-    "offdiag_std": 0.23114811191080886,
-    "offdiag_min": 0.001194562843000465,
-    "effective_rank": 8.40622317145665,
-    "auc_uncertainty_mHa": 292.6711350867932,
-    "auc_random_mHa": 641.3087606113284,
-    "rmse_final_mHa": 10.65771474157166
+    "offdiag_mean": 0.39856963495290293,
+    "offdiag_std": 0.22987952942936188,
+    "offdiag_min": 0.003888854118432768,
+    "effective_rank": 8.206830974667257,
+    "auc_uncertainty_mHa": 298.53770543912634,
+    "auc_random_mHa": 603.9541141117115,
+    "rmse_final_mHa": 10.046217718766808
   },
   "Delta-learning (MP2 energy only)": {
-    "offdiag_mean": 0.4509596814063179,
-    "offdiag_std": 0.39222820756176013,
-    "offdiag_min": 1.3398382346108981e-15,
-    "effective_rank": 3.8489052769857754,
-    "auc_uncertainty_mHa": 161.19826487636286,
-    "auc_random_mHa": 2519.1191611920744,
-    "rmse_final_mHa": 2.5359709323284827
+    "offdiag_mean": 0.4443941966470035,
+    "offdiag_std": 0.39053116881309075,
+    "offdiag_min": 6.331575915484205e-16,
+    "effective_rank": 3.895047784596083,
+    "auc_uncertainty_mHa": 127.57258948124536,
+    "auc_random_mHa": 2434.2651641394873,
+    "rmse_final_mHa": 0.5753334323685634
   },
   "Fidelity (cheap 5-step states)": {
-    "offdiag_mean": 0.79609720417561,
-    "offdiag_std": 0.1184836636711402,
-    "offdiag_min": 0.3896309955520679,
-    "effective_rank": 2.5576449245916817,
-    "auc_uncertainty_mHa": 259.65174268993024,
-    "auc_random_mHa": 538.9363799321736,
-    "rmse_final_mHa": 6.8676386182034435
+    "offdiag_mean": 0.7915695858615482,
+    "offdiag_std": 0.12295235474366926,
+    "offdiag_min": 0.2807027446865171,
+    "effective_rank": 2.5981010928841086,
+    "auc_uncertainty_mHa": 271.8515047497156,
+    "auc_random_mHa": 573.937814657944,
+    "rmse_final_mHa": 6.541372323469854
   },
   "Fidelity (MP2 states, no optimisation)": {
-    "offdiag_mean": 0.9932098379264857,
-    "offdiag_std": 0.009633362572977762,
-    "offdiag_min": 0.9392544695808148,
-    "effective_rank": 1.0506559827009783,
-    "auc_uncertainty_mHa": 181.32248831501946,
-    "auc_random_mHa": 550.5851150771584,
-    "rmse_final_mHa": 1.1421920811395767
+    "offdiag_mean": 0.9933218012187129,
+    "offdiag_std": 0.009287581317958789,
+    "offdiag_min": 0.9358635906607011,
+    "effective_rank": 1.0494973163748915,
+    "auc_uncertainty_mHa": 143.99194569009006,
+    "auc_random_mHa": 422.5778444157842,
+    "rmse_final_mHa": 1.1981437294938186
   },
   "Fidelity (converged states, oracle)": {
-    "offdiag_mean": 0.9537616300858068,
-    "offdiag_std": 0.05158498900986074,
-    "offdiag_min": 0.6942234899602788,
-    "effective_rank": 1.280654693300564,
-    "auc_uncertainty_mHa": 201.04760786645153,
-    "auc_random_mHa": 413.3656836181315,
-    "rmse_final_mHa": 5.082931319211442
+    "offdiag_mean": 0.9539747887724312,
+    "offdiag_std": 0.05103388896880736,
+    "offdiag_min": 0.7225170253905211,
+    "effective_rank": 1.2822607944771254,
+    "auc_uncertainty_mHa": 192.94428019913394,
+    "auc_random_mHa": 437.9714437065116,
+    "rmse_final_mHa": 4.158044065089196
   }
 }

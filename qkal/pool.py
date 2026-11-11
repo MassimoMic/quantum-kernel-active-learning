@@ -78,7 +78,7 @@ def embed(smiles: str, seed: int = 7) -> tuple[list, np.ndarray]:
 
 
 def build_pool(names: list | None = None) -> list[Molecule]:
-    names = names or list(POOL_SMILES)
+    names = list(POOL_SMILES) if names is None else names
     out = []
     for n in names:
         smi = POOL_SMILES[n]
