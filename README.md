@@ -36,7 +36,7 @@ cheap classical proxies chemistry already has?
   |---|---|---|
   | Tanimoto / Morgan FP | SMILES | ~0 |
   | RBF / RDKit descriptors (pool A) or geometry features (pool B) | SMILES / geometry | ~0 |
-  | Δ-learning on the MP2 energy | `E_MP2 − E_HF` (scalar) | one MP2 (ms) |
+  | Δ-learning on the energy of the MP2-initialised state | `⟨ψ_MP2|H|ψ_MP2⟩ − E_HF` (scalar) | one MP2 + one circuit |
   | Fidelity between **MP2-initialised UCCSD states** | state vector | one MP2 + one circuit |
   | Fidelity between states after *k* VQE steps (k = 1, 2, 5, 10, 20) | state vector | k/≈85 of a label |
   | Fidelity between **converged VQE states** (*oracle*: uses the label itself) | state vector | the full label |
@@ -72,9 +72,9 @@ MP2 state 1.1 · 1.1 — converged 5.1 · 1.3.
 
 ### What this says
 
-1. **MP2 information wins, in either form.** The two best surrogates are both derived
-   from MP2: a GP on the single number `E_MP2 − E_HF` reaches 2.5 mHa with 25 labels,
-   the fidelity kernel between MP2-initialised (unoptimised) states reaches 1.1 mHa. Both
+1. **MP2 information wins, in either form.** The two best surrogates are two readouts of
+   the same MP2-initialised state ψ_MP2: a GP on its energy `⟨ψ_MP2|H|ψ_MP2⟩ − E_HF`
+   reaches 2.5 mHa with 25 labels, the fidelity kernel between the states reaches 1.1 mHa. Both
    beat every other state kernel, including the oracle (5.1 mHa). On closed-shell
    molecules near equilibrium the ratio exact/MP2 is a fingerprint of the chemical class
    (≈0.58–0.65 for saturated molecules, 0.46–0.50 for C=C and C=O, 0.65–0.67 for triple
@@ -138,7 +138,7 @@ enough multireference information to improve the active-learning choices?*
 
 1. **Consistent active space along each pool-B curve** (orbital tracking by overlap with
    the previous geometry, or natural orbitals from a cheap calculation), then relabel pool B.
-2. **Resolve the MP2 anomalies** (see Caveats) and regenerate both pools.
+2. **Add the true PySCF MP2 energy and its natural occupations** as the cheapest surrogate, and regenerate both pools.
 3. **GP hyperparameters by marginal likelihood** for all kernels, so that the classical
    baseline of pool B is fair.
 4. **Features from the 1-RDM** (natural occupation numbers, orbital entropies) instead
@@ -176,10 +176,15 @@ version, check for duplicated names before running `run_al.py`
   C₂H₂: −280 mHa at 1.6 r_eq, −179 at 1.8). The largest VQE–exact gaps sit at the same
   geometries. Pool-B labels are therefore partly artefacts until the active space is
   tracked consistently along each curve.
-- **MP2 anomalies.** For N₂ and CO₂ in pool A, and for contiguous blocks of pool-B
-  geometries, `E_MP2 − E_HF` has the wrong sign (the ratio exact/MP2 is ≈ −0.13 in all
-  of them). A standard RHF-MP2 correction cannot be positive; the reference used for
-  `e_mp2` and `e_hf` is being checked. These points are suspect in both pools.
+- **"MP2 energy" means the energy of the MP2-initialised state.** `e_mp2` is
+  `⟨ψ_MP2|H|ψ_MP2⟩`, the variational energy of the UCCSD circuit with MP2 amplitudes as
+  parameters — not the PySCF MP2 energy. Being variational, it can sit *above* HF when
+  the MP2 amplitudes are poor, which is what happens for N₂ and CO₂ in pool A and for
+  contiguous blocks of pool-B geometries (ratio ≈ −0.13): a crude multireference
+  diagnostic, not a bug. The two best pool-A surrogates (the scalar and the fidelity
+  kernel) are therefore two readouts of the same state. The true MP2 energy (ms cost)
+  and its natural occupations are not yet in the comparison and are the first surrogate
+  to add.
 - Fidelities compare states in each molecule's own canonical-orbital basis; overlaps mix
   physics with basis conventions. Orbital localisation, a shared reference, or
   basis-invariant features (1-RDM eigenvalues) are the fixes.
